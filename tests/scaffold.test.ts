@@ -14,6 +14,7 @@ describe("the adapter", () => {
     const adapter = await loadAdapter(join(import.meta.dirname, "..", "dist", "index.js"), "/");
     expect(adapter?.name).toBe("delve");
     expect(adapter?.masks).toContain(".campaign-group");
+    expect(Object.keys(adapter!.steps).sort()).toEqual(["act", "ask", "character", "dm-done", "hover-room", "new-campaign", "open-campaign", "restore-painter", "seat", "set-language", "set-painter", "zoom-map"]);
   });
 
   it("has a fake Delve to test against, with the crypt's module", async () => {

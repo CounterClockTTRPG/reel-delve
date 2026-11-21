@@ -17,8 +17,8 @@ const adapter: Adapter = defineAdapter({
   name: "delve",
   version: "0.1.0",
   steps: STEPS,
-  // Other people's names in the campaign list, and the account menu: never in a public video.
-  masks: [".campaign-list-head", ".campaign-group", "[data-testid=account-menu]"],
+  // Other people's names in the campaign list: never in a public video.
+  masks: [".campaign-list-head", ".campaign-group"],
   options: z.object({ seed: SeedOptions.optional() }).strict() as unknown as z.ZodType<Record<string, unknown>>,
   async init({ page }) {
     await page.addInitScript((presets) => {
