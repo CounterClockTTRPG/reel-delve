@@ -80,6 +80,7 @@ export async function seed(ctx: SeedContext): Promise<void> {
     const token = readFileSync(home(o.from.token_file), "utf8").trim();
     const theirs = await realModules(o, token);
     const here = listOf(await (await ctx.api.get("/api/modules")).json());
+    const failed: string[] = [];
     for (const title of o.modules) {
       const found = theirs.find((m) => m.title.toLowerCase() === title.toLowerCase());
       if (!found) {
@@ -91,11 +92,19 @@ export async function seed(ctx: SeedContext): Promise<void> {
         continue;
       }
       const exported = await fetch(new URL(`/api/modules/${found.id}/export.dscn`, o.from.base), { headers: { authorization: `Bearer ${token}` } });
-      if (!exported.ok) throw new Error(`exporting "${found.title}" from the real Delve: ${exported.status} ${(await exported.text()).slice(0, 200)}`);
+      if (!exported.ok) {
+        // A module the real Delve can't export (its own data is broken) is reported, and the others still come.
+        failed.push(`"${found.title}" doesn't export from the real Delve: ${exported.status} ${(await exported.text()).slice(0, 200)}`);
+        continue;
+      }
       const bundle = Buffer.from(await exported.arrayBuffer());
       const imported = await ctx.api.post("/api/modules/import", { data: bundle, headers: { "content-type": "application/zip" } });
-      if (!imported.ok()) throw new Error(`importing "${found.title}": ${imported.status()} ${(await imported.text()).slice(0, 300)}`);
+      if (!imported.ok()) {
+        failed.push(`"${found.title}" doesn't import: ${imported.status()} ${(await imported.text()).slice(0, 300)}`);
+        continue;
+      }
       ctx.log(`  module ${found.title}: imported (${(bundle.length / 1e6).toFixed(1)} MB)`);
     }
+    if (failed.length) throw new Error(`${failed.length} of ${o.modules.length} modules didn't come over:\n  ${failed.join("\n  ")}`);
   }
 }
