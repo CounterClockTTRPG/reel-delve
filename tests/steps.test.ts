@@ -45,6 +45,7 @@ describe("preferences", () => {
     await page.goto(`${delve.base}/preferences`);
     await page.getByRole("tab", { name: "Backends" }).click();
     const provider = page.locator("#job-image-portrait-provider");
+    await page.waitForFunction(() => (document.querySelector("#job-image-portrait-provider") as HTMLSelectElement | null)?.options.length! > 1);
     const labels = (await provider.locator("option").allInnerTexts()).map((l) => l.trim());
     const current = await provider.evaluate((s) => (s as HTMLSelectElement).selectedOptions[0]?.textContent?.trim() ?? "");
     await browser.close();
