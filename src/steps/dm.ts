@@ -29,14 +29,16 @@ export const dmSteps: Record<string, StepDef<any>> = {
     async run(ctx, a: { text: string; button: "act" | "pass"; caption?: z.infer<typeof Caption> }) {
       const { stage, page } = ctx;
       const story = page.getByTestId("story");
-      const before = (await story.innerText().catch(() => "")).length;
+      const before = await story.innerText().catch(() => "");
       await stage.type("[data-testid=composer] textarea", a.text);
       await stage.click(`[data-testid=${a.button}]`, { after: 0.5 });
       if (a.caption) await stage.say(a.caption.text, { label: a.caption.label, keep: true, place: "top" });
       await dmDone(ctx);
       if (a.caption) await stage.unsay();
       // What the turn added to the story: the act and the DM's answer (keep it with `as:` to check it later).
-      return (await story.innerText()).slice(before).trim();
+      const after = await story.innerText();
+      // (An empty story's placeholder is replaced by the first beat: then the whole story is the turn.)
+      return (after.startsWith(before) ? after.slice(before.length) : after).trim();
     },
     async dry(ctx, a: { text: string }) {
       // What would be sent, typed but not sent: the step still finds its composer.
