@@ -16,7 +16,7 @@ export async function setPainter(ctx: StepContext, label: string, say?: { label?
   if (say) await stage.say(say.text, { label: say.label, spot: `${PROVIDER} >> xpath=ancestor::fieldset[1]` });
   if (before !== label) {
     await stage.select(PROVIDER, { label });
-    await stage.click("role=button[name='Save']");
+    await stage.click('role=button[name="Save"s]');
     await page.getByRole("status").filter({ hasText: "Saved" }).waitFor({ timeout: 30_000 });
     await stage.pause(1);
   }

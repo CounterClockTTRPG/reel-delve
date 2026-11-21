@@ -3,7 +3,7 @@
 // session saved for `auth: login`), and the modules the films show, copied from the owner's real Delve as .dscn
 // exports. The real Delve is only ever read: GET /api/modules and GET /api/modules/<id>/export.dscn.
 import { randomBytes } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import type { SeedContext } from "reel/adapter";
@@ -29,7 +29,9 @@ const listOf = (body: unknown): ModuleRow[] => (Array.isArray(body) ? body : ((b
 
 /** The modules of the real Delve (read only), with its token from its file. */
 async function realModules(o: SeedOptions, token: string): Promise<ModuleRow[]> {
-  const res = await fetch(new URL("/api/modules", o.from.base), { headers: { authorization: `Bearer ${token}` } });
+  const res = await fetch(new URL("/api/modules", o.from.base), { headers: { authorization: `Bearer ${token}` } }).catch((e) => {
+    throw new Error(`the real Delve at ${o.from.base} can't be reached: ${(e as Error).message}`);
+  });
   if (!res.ok) throw new Error(`the real Delve's modules (${o.from.base}): ${res.status}`);
   return listOf(await res.json());
 }
@@ -37,6 +39,17 @@ async function realModules(o: SeedOptions, token: string): Promise<ModuleRow[]> 
 function closest(title: string, titles: string[]): string[] {
   const words = title.toLowerCase().split(/\W+/).filter((w) => w.length > 3);
   return titles.filter((t) => words.some((w) => t.toLowerCase().includes(w))).slice(0, 5);
+}
+
+/**
+ * That the Delve answering on ctx.base keeps its data in ctx.data: its owner token (data/token) opens its API. Checked
+ * before anything is written, so a mistaken serve.env never seeds some other Delve's data.
+ */
+async function checkData(ctx: SeedContext): Promise<void> {
+  const file = join(ctx.data, "token");
+  const token = existsSync(file) ? readFileSync(file, "utf8").trim() : "";
+  const res = token ? await fetch(new URL("/api/modules", ctx.base), { headers: { authorization: `Bearer ${token}` } }).catch(() => null) : null;
+  if (!res?.ok) throw new Error(`${ctx.data} isn't the data of the Delve on ${ctx.base} (its token doesn't open it): check app.serve.env's DELVE_DATA_DIR`);
 }
 
 export async function seed(ctx: SeedContext): Promise<void> {
@@ -47,15 +60,22 @@ export async function seed(ctx: SeedContext): Promise<void> {
     throw new Error(`the Delve to seed (${ctx.base}) is the one to copy from: seeding never writes to the real Delve`);
   }
   if (port(ctx.base) === "7810") throw new Error("port 7810 is the owner's real Delve: the separate Delve runs elsewhere");
+  const real = (p: string) => (existsSync(p) ? realpathSync(p) : p);
+  if (real(ctx.data) === real(home("~/.local/share/delve")) || real(ctx.data) === real(process.env.DELVE_DATA_DIR ?? "~")) {
+    throw new Error(`the data folder ${ctx.data} is the owner's own Delve data: seeding never writes there`);
+  }
+  const env = { DELVE_DATA_DIR: ctx.data };
+  await checkData(ctx);
 
   // 1. Packs, with Delve stopped: `delve pack install` writes into the data folder.
   if (o.packs.length) {
     await ctx.stopApp();
     for (const pack of o.packs) {
       ctx.log(`  pack ${pack}`);
-      await ctx.run("uv", ["run", "delve", "pack", "install", home(pack)]);
+      await ctx.run("uv", ["run", "delve", "pack", "install", home(pack)], { env });
     }
     await ctx.startApp();
+    await checkData(ctx);
   }
 
   // 2. The demo owner: made the first time, logged in later; its session is what recordings use.

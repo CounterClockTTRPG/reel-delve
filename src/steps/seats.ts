@@ -22,6 +22,8 @@ async function json(res: { ok(): boolean; status(): number; text(): Promise<stri
 
 /** Seats this step's page (a seat's own) at the campaign; returns the seat. */
 export async function seat(ctx: StepContext, a: z.infer<typeof Seat>): Promise<{ id: string; name?: string }> {
+  // It logs its page in as the seat's account: on the host's page, the host would be logged out on camera.
+  if (ctx.seatName === "host") throw new Error(`delve.seat runs on the seat's page: add seat: <name> to the step (for ${a.who})`);
   const id = campaignId(ctx, a.campaign);
   const { join_token: token } = await json(await ctx.api.get(`/api/campaigns/${id}/invite`), "the campaign's invite");
   const request = ctx.page.request;

@@ -23,6 +23,8 @@ describe("campaigns", () => {
     ]);
     const id = state.get("made") as string;
     expect(id).toMatch(/^cmp_/);
+    const campaign = await (await fetch(`${delve.base}/api/campaigns/${id}`)).json();
+    expect(campaign.ruleset ?? campaign.campaign?.ruleset).toBe("osric");
     expect((await campaigns(delve.base)).map((c) => c.id)).toContain(id);
   });
 });
@@ -75,6 +77,10 @@ describe("seats", () => {
     const again = await recordScene(studio, [{ goto: "/" }, { "delve.seat": { who: "Zed", campaign: crypt }, seat: "zed", as: "z" }]);
     expect((again.state.get("z") as { id: string }).id).toBeTruthy();
     expect(secretsFor("delve").get("seat.tour-zed")).not.toBe("not-a-password");
+  });
+
+  it("refuses to seat the host's own page", async () => {
+    await expect(recordScene(studio, [{ goto: "/" }, { "delve.seat": { who: "Host", campaign: crypt } }])).rejects.toThrow(/runs on the seat's page/);
   });
 
   it("makes a character once, and gives it to a seat", async () => {

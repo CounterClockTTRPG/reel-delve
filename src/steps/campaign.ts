@@ -39,17 +39,21 @@ Object.assign(campaignSteps, {
       if (!/\/campaigns\/?$/.test(new URL(page.url()).pathname)) await stage.navigate("/campaigns");
       const form = page.locator("form#new-campaign");
       await form.waitFor();
-      const module = page.locator("#campaign-module");
-      const value = await module.locator("option", { hasText: a.module }).first().getAttribute("value", { timeout: 10_000 })
-        .catch(() => null);
+      await page.locator("#campaign-module option").first().waitFor({ state: "attached", timeout: 10_000 }).catch(() => {});
+      const value = await page.locator("#campaign-module").evaluate((s, title) => {
+        const exact = [...(s as HTMLSelectElement).options].find((o) => o.textContent?.trim().toLowerCase() === title.toLowerCase());
+        return exact?.value ?? null;
+      }, a.module);
       if (!value) throw new Error(`no module "${a.module}" in the New campaign form (is it seeded?)`);
       await stage.select("#campaign-module", { value });
       if (a.name) await stage.type("#campaign-name", a.name, { delay: 80 });
-      if (a.ruleset && (await page.locator("#campaign-ruleset").isVisible().catch(() => false))) {
-        await stage.select("#campaign-ruleset", { value: a.ruleset });
-      }
-      if (a.setting && (await page.locator("#campaign-setting").isVisible().catch(() => false))) {
-        await stage.select("#campaign-setting", { value: a.setting });
+      // The ruleset and setting fields come once the module's world has loaded: wait for them when they're asked for.
+      for (const [field, wanted] of [["#campaign-ruleset", a.ruleset], ["#campaign-setting", a.setting]] as const) {
+        if (!wanted) continue;
+        await page.locator(field).waitFor({ timeout: 15_000 }).catch(() => {
+          throw new Error(`the New campaign form has no ${field.slice(10)} field for ${a.module}`);
+        });
+        await stage.select(field, { value: wanted });
       }
       const submit = form.getByRole("button", { name: "New campaign" });
       await page.waitForFunction((b) => !(b as HTMLButtonElement).disabled, await submit.elementHandle(), { timeout: 30_000 });
@@ -64,7 +68,8 @@ Object.assign(campaignSteps, {
       const { stage, page } = ctx;
       if (!/\/campaigns\/?$/.test(new URL(page.url()).pathname)) await stage.navigate("/campaigns");
       await page.locator("form#new-campaign").waitFor();
-      const found = await page.locator("#campaign-module option", { hasText: a.module }).count();
+      const found = await page.locator("#campaign-module").evaluate((s, title) =>
+        [...(s as HTMLSelectElement).options].some((o) => o.textContent?.trim().toLowerCase() === title.toLowerCase()), a.module);
       if (!found) throw new Error(`no module "${a.module}" in the New campaign form (is it seeded?)`);
       ctx.log(`  (dry: no campaign made of ${a.module})`);
       return undefined;

@@ -82,6 +82,12 @@ describe("seeding a separate Delve", () => {
     expect(saved).toHaveLength(1);
   });
 
+  it("refuses to write when its data folder isn't the running Delve's", async () => {
+    const ctx = await context(["Reel Seed Test"], []);
+    const elsewhere = tmp();
+    await expect(adapter.seed!({ ...ctx, data: elsewhere })).rejects.toThrow(/isn't the data of the Delve on/);
+  });
+
   it("fails on a module the real Delve doesn't have, naming close ones", async () => {
     await expect(adapter.seed!(await context(["Reel Seed Tset"], []))).rejects.toThrow(/no module "Reel Seed Tset".*close: Reel Seed Test/);
   });

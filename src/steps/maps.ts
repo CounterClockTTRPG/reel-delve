@@ -13,7 +13,7 @@ export const mapSteps: Record<string, StepDef<any>> = {
       for (let i = 0; i < a.notches; i++) {
         const box = await marker.boundingBox();
         if (!box) break;
-        await (stage as unknown as { glide(x: number, y: number): Promise<void> }).glide(box.x + 5, box.y + 5);
+        await stage.glide(box.x + 5, box.y + 5);
         await page.mouse.wheel(0, -120);
         await stage.pause(0.8);
       }
@@ -39,7 +39,7 @@ export const mapSteps: Record<string, StepDef<any>> = {
         return null;
       }, a.room);
       if (!point) throw new Error(`room "${a.room}" isn't on the screen`);
-      await (stage as unknown as { glide(x: number, y: number): Promise<void> }).glide(point.x, point.y);
+      await stage.glide(point.x, point.y);
       await stage.pause(1.2);
     },
   },
