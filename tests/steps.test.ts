@@ -29,6 +29,13 @@ describe("campaigns", () => {
   });
 });
 
+describe("modules", () => {
+  it("finds a module's id by its title", async () => {
+    const { state } = await recordScene(studio, [{ goto: "/modules" }, { "delve.module": { title: "the crypt of saint vellis" }, as: "crypt" }]);
+    expect(state.get("crypt")).toMatch(/^mod_/);
+  });
+});
+
 describe("preferences", () => {
   it("switches the language and says which one it replaced", async () => {
     const { state } = await recordScene(studio, [

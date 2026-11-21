@@ -76,3 +76,19 @@ Object.assign(campaignSteps, {
     },
   },
 } satisfies Record<string, StepDef<any>>);
+
+Object.assign(campaignSteps, {
+  module: {
+    args: z.object({ title: z.string() }).strict(),
+    /** A module's id by its exact title (ids differ from one Delve to another): keep it with `as:`, use it as {{key}}. */
+    async run(ctx: StepContext, a: { title: string }) {
+      const res = await ctx.api.get("/api/modules");
+      if (!res.ok()) throw new Error(`the modules: ${res.status()}`);
+      const body = await res.json();
+      const list: { id: string; title: string }[] = Array.isArray(body) ? body : (body.modules ?? []);
+      const found = list.find((m) => m.title.toLowerCase() === a.title.toLowerCase());
+      if (!found) throw new Error(`no module "${a.title}" in this Delve (is it seeded?)`);
+      return found.id;
+    },
+  },
+} satisfies Record<string, StepDef<any>>);

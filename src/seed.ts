@@ -14,6 +14,8 @@ export const SeedOptions = z.object({
   packs: z.array(z.string()).default([]),
   owner: z.object({ username: z.string().min(3), display_name: z.string().optional() }).strict(),
   modules: z.array(z.string()).default([]),
+  /** Settings whose additions (pages, facts, world maps) are copied from the real Delve. */
+  settings: z.array(z.string()).default([]),
 }).strict();
 export type SeedOptions = z.infer<typeof SeedOptions>;
 
@@ -126,5 +128,19 @@ export async function seed(ctx: SeedContext): Promise<void> {
       ctx.log(`  module ${found.title}: imported (${(bundle.length / 1e6).toFixed(1)} MB)`);
     }
     if (failed.length) throw new Error(`${failed.length} of ${o.modules.length} modules didn't come over:\n  ${failed.join("\n  ")}`);
+  }
+
+  // 4. The settings' additions (the owner's own pages, facts and world maps), from the real Delve; ones here are kept.
+  if (o.settings.length) {
+    const token = readFileSync(home(o.from.token_file), "utf8").trim();
+    for (const setting of o.settings) {
+      const exported = await fetch(new URL(`/api/settings/${setting}/additions/export`, o.from.base), { headers: { authorization: `Bearer ${token}` } });
+      if (!exported.ok) throw new Error(`the real Delve's additions to ${setting}: ${exported.status} ${(await exported.text()).slice(0, 200)}`);
+      const bundle = Buffer.from(await exported.arrayBuffer());
+      const imported = await ctx.api.post(`/api/settings/${setting}/additions`, { data: bundle, headers: { "content-type": "application/zip" } });
+      if (!imported.ok()) throw new Error(`importing the additions to ${setting}: ${imported.status()} ${(await imported.text()).slice(0, 300)}`);
+      const said = JSON.stringify(await imported.json().catch(() => ({}))).slice(0, 160);
+      ctx.log(`  setting ${setting}: additions imported (${(bundle.length / 1e6).toFixed(1)} MB) ${said}`);
+    }
   }
 }

@@ -36,7 +36,7 @@ async function context(modules: string[], saved: unknown[]): Promise<SeedContext
     base: demo.base,
     data: dbDir,
     api,
-    options: { seed: { from: { base: source.base, token_file: tokenFile }, packs: [join(DELVE_REPO, "packs", "osric")], owner: { username: "demo", display_name: "The host" }, modules } },
+    options: { seed: { from: { base: source.base, token_file: tokenFile }, packs: [join(DELVE_REPO, "packs", "osric")], owner: { username: "demo", display_name: "The host" }, modules, settings: ["greyhawk"] } },
     secrets: secretsFor("delve"),
     log: () => {},
     run: (cmd, args) => run(cmd, args, { cwd: DELVE_REPO, env: { ...process.env, DELVE_DATA_DIR: dbDir } }),
